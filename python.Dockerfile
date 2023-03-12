@@ -175,7 +175,6 @@ RUN cd python-src && LDFLAGS="${LDFLAGS} $(pkg-config --libs-only-L libffi) $(pk
     --host "$TOOLCHAIN_TRIPLE" \
     --build "$COMPILER_TRIPLE" \
     --prefix="$PYTHON_INSTALL_DIR" \
-    --enable-shared \
     --enable-ipv6 \
     --with-openssl=$OPENSSL_INSTALL_DIR \
     --without-ensurepip \
@@ -251,17 +250,17 @@ RUN cd python-src && rm Lib/test/test_wsgiref.py
 
 # Install Python.
 RUN cd python-src && make install | tee -a $LOGS_DIR/python.install.log
-RUN cp -a $PYTHON_INSTALL_DIR/lib/libpython${PYTHON_SOVERSION}.so "$JNI_LIBS"
+#RUN cp -a $PYTHON_INSTALL_DIR/lib/libpython${PYTHON_SOVERSION}.so "$JNI_LIBS"
 
 # Download & install rubicon-java's Java & C parts. The *.py files in rubicon-java are
 # incorporated into apps via app dependency management and are ABI-independent since
 # they access the C library via `ctypes`.
-ADD downloads/rubicon-java/* .
-RUN mv rubicon-java-* rubicon-java-src
-RUN cd rubicon-java-src && \
-    LDFLAGS='-landroid -llog' PYTHON_CONFIG=$PYTHON_INSTALL_DIR/bin/python3-config make | tee -a $LOGS_DIR/rubicon.log
-RUN mv rubicon-java-src/build/librubicon.so $JNI_LIBS
-RUN mkdir -p /opt/python-build/app/libs/ && mv rubicon-java-src/build/rubicon.jar $APPROOT/app/libs/
+#ADD downloads/rubicon-java/* .
+#RUN mv rubicon-java-* rubicon-java-src
+#RUN cd rubicon-java-src && \
+#    LDFLAGS='-landroid -llog' PYTHON_CONFIG=$PYTHON_INSTALL_DIR/bin/python3-config make | tee -a $LOGS_DIR/rubicon.log
+#RUN mv rubicon-java-src/build/librubicon.so $JNI_LIBS
+#RUN mkdir -p /opt/python-build/app/libs/ && mv rubicon-java-src/build/rubicon.jar $APPROOT/app/libs/
 
 ENV ASSETS_DIR $APPROOT/app/src/main/assets
 RUN mkdir -p "${ASSETS_DIR}"

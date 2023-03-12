@@ -30,22 +30,22 @@ lib/python*/tkinter/*
 lib/python*/turtle.py
 lib/python*/turtledemo/*
 # Remove lib/pkgconfig files. These are used for compiling C extension modules.
-lib/pkgconfig/*
+#lib/pkgconfig/*
 # Remove site-packages directory. The Android template unpacks user code and
 # dependencies to a different path.
-lib/python*/site-packages/*
+#lib/python*/site-packages/*
 # Remove include/ directory, only useful for compiling C extension modules.
-include/*
+#include/*
 # Remove bin/ directory, which contains executables like 2to3
 # (not useful in the app) and python3, which could possibly be useful,
 # except Python-Android-support doesn't support launching Python as a
 # subprocess very well at the moment.
-bin/*
+#bin/*
 # Remove share/ directory, which contains user documentation (man pages).
 share/*
 # Remove libpython.so from the stdlib package. We rely on the libpython.so
 # in the JNI libs directory instead.
-lib/libpython3*.so
+#lib/libpython3*.so
 # Remove pyc files. These take up space, but since most stdlib modules are
 # never imported by user code, they mostly have no value.
 */*.pyc
