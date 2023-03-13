@@ -262,15 +262,36 @@ RUN cd python-src && make install | tee -a $LOGS_DIR/python.install.log
 #RUN mv rubicon-java-src/build/librubicon.so $JNI_LIBS
 #RUN mkdir -p /opt/python-build/app/libs/ && mv rubicon-java-src/build/rubicon.jar $APPROOT/app/libs/
 
-ENV ASSETS_DIR $APPROOT/app/src/main/assets
-RUN mkdir -p "${ASSETS_DIR}"
 
 # Create pythonhome.zip for this CPU architecture, filtering pythonhome.zip using pythonhome-excludes
 # to remove the CPython test suite, etc.
+#ARG COMPRESS_LEVEL
+#ADD excludes/all/pythonhome-excludes /opt/python-build/
+#RUN mkdir -p "$ASSETS_DIR/stdlib" && cd "$PYTHON_INSTALL_DIR" && zip -x@/opt/python-build/pythonhome-excludes -$COMPRESS_LEVEL -q "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip -r .
+#RUN mkdir -p "$ASSETS_DIR/stdlib" && cd "$PYTHON_INSTALL_DIR"
+# Rename the ZIP file to include its sha256sum. This enables fast, accurate
+# cache validation/invalidation when the ZIP file reaches the Android device.
+#RUN sha256sum "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip | cut -d' ' -f1 > /tmp/sum
+#RUN mv "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip "$ASSETS_DIR"/stdlib/pythonhome.`cat /tmp/sum`.${TARGET_ABI_SHORTNAME}.zip
+
+
+FROM toolchain as build_boost
+RUN apt-get update -qq && apt-get -qq install git curl zip bash
+COPY --from=build_python $PYTHON_INSTALL_DIR $PYTHON_INSTALL_DIR
+
+ENV ASSETS_DIR $APPROOT/app/src/main/assets
+RUN mkdir -p "${ASSETS_DIR}"
+
+RUN rm -rf Boost-for-Android
+RUN git clone https://github.com/kunihito/Boost-for-Android.git
+#CMD ["bash", "./Boost-for-Android/build-android.sh", "$NDK", "--toolchain=llvm",  "--arch=arm64-v8a",  "--with-python=$PYTHON_INSTALL_DIR/bin"]
+ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" /dev/null
+RUN ["./Boost-for-Android/build-android.sh", "$NDK", "--toolchain=llvm", "--arch=arm64-v8a", "--with-python=${PYTHON_INSTALL_DIR}/bin" ] 
+#RUN mv ./Boost-for-Android $PYTHON_INSTALL_DIR
+#RUN mv ./Boost-for-Android $APPROOT
+
 ARG COMPRESS_LEVEL
 ADD excludes/all/pythonhome-excludes /opt/python-build/
 RUN mkdir -p "$ASSETS_DIR/stdlib" && cd "$PYTHON_INSTALL_DIR" && zip -x@/opt/python-build/pythonhome-excludes -$COMPRESS_LEVEL -q "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip -r .
-# Rename the ZIP file to include its sha256sum. This enables fast, accurate
-# cache validation/invalidation when the ZIP file reaches the Android device.
-RUN sha256sum "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip | cut -d' ' -f1 > /tmp/sum
-RUN mv "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip "$ASSETS_DIR"/stdlib/pythonhome.`cat /tmp/sum`.${TARGET_ABI_SHORTNAME}.zip
+
+
