@@ -19,3 +19,39 @@
 # This line would remove the "xz" compression library. This might
 # be appropriate if you don't use that compression format in your
 # code.
+libffi/share/*
+sqlite/bin/*
+xz/bin/*
+xz/share/*
+
+openssl/bin/*
+openssl/share/*
+
+python/bin/*
+python/share/*
+
+python/lib/python*/ctypes/test/*
+python/lib/python*/distutils/tests/*
+python/lib/python*/lib2to3/tests/*
+python/lib/python*/sqlite3/test/*
+python/lib/python*/test/*
+# Remove compiled test and example modules.
+python/lib/python*/lib-dynload/_test*.so
+python/lib/python*/lib-dynload/_ctypes_test*.so
+python/lib/python*/lib-dynload/xxlimited*.so
+python/lib/python*/lib-dynload/_xxtestfuzz.so
+# Remove wsgiref web app module; it's unusual that mobile apps would
+# start a web app server with it.
+python/lib/python*/wsgiref/*
+# Remove command-line curses toolkit.
+python/lib/python*/curses/*
+# Remove config-* directory, which is used for compiling C extension modules.
+python/lib/python*/config-*
+python/# Remove ensurepip. If user code needs pip, it can add it to
+python/lib/python*/ensurepip/*
+# Remove Tcl/Tk GUI code. We don't build against Tcl/Tk at the moment, so this
+# will not work.
+python/lib/python*/idlelib/*
+python/lib/python*/tkinter/*
+python/lib/python*/turtle.py
+python/lib/python*/turtledemo/*

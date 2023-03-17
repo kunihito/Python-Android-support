@@ -118,19 +118,22 @@ function build_one_abi() {
         --build-arg PYTHON_EXTRA_CONFIGURE_FLAGS="$PYTHON_EXTRA_CONFIGURE_FLAGS" \
         -f python.Dockerfile .
     # Extract the build artifacts we need to create our zip file.
+    # -v = volumeマッピング、--rm = 実行後にコンテナ削除、--entrypoint = Dockerfileで定義されたENTRYPOINTを上書きする為のオプション
     docker run -v "${PWD}"/build/"${PYTHON_VERSION}"/:/mnt/ --rm --entrypoint rsync "$TAG_NAME" -a /opt/python-build/approot/. /mnt/.
+
+    docker run -v "${PWD}"/build/android-support/:/mnt/ --rm --entrypoint rsync "$TAG_NAME" -a /opt/python-build/built/. /mnt/.
     # Extract header files
     docker run -v "${PWD}"/build/"${PYTHON_VERSION}"/app/include/:/mnt/ --rm --entrypoint rsync "$TAG_NAME" -a /opt/python-build/built/python/include/ /mnt/
     # Extract log files
     docker run -v "${PWD}"/build/"${PYTHON_VERSION}"/logs/:/mnt/ --rm --entrypoint rsync "$TAG_NAME" -a /opt/python-build/logs/ /mnt/
-
+    #docker run -t "$TAG_NAME"
     # Docker creates files as root; reown as the local user
     fix_permissions
 
     # Move pyconfig.h to a platform-specific name.
-    mv "${PWD}"/build/"${PYTHON_VERSION}"/app/include/python"${PYTHON_SOVERSION}"/pyconfig.h "${PWD}"/build/"${PYTHON_VERSION}"/app/include/python"${PYTHON_SOVERSION}"/pyconfig-${TARGET_ABI_SHORTNAME}.h
+    mv "${PWD}"/build/android-support/python/include/python"${PYTHON_SOVERSION}"/pyconfig.h "${PWD}"/build/android-support/python/include/python"${PYTHON_SOVERSION}"/pyconfig-${TARGET_ABI_SHORTNAME}.h
     # Inject a platform-agnostic pyconfig.h wrapper.
-    cp "${PWD}/patches/all/pyconfig.h" "${PWD}"/build/"${PYTHON_VERSION}"/app/include/python"${PYTHON_SOVERSION}"/
+    cp "${PWD}/patches/all/pyconfig.h" "${PWD}"/build/android-support/python/include/python"${PYTHON_SOVERSION}"/
 }
 
 # Download a file into downloads/$name/$filename and verify its sha256sum.
@@ -143,6 +146,12 @@ function download() {
     local sha256="$3"
     local download_dir="${PWD}/downloads/$name"
     local base_filename="$(echo "$url" | tr '/' '\n' | tail -n1)"
+    if [ "$name" = "boost" ] ; then
+      local base_filename="Boost-for-Android-$base_filename"
+    fi
+    if [ "$name" = "zstd" ] ; then
+      local base_filename="zstd-$base_filename"
+    fi
     local full_filename="$download_dir/$base_filename"
     local full_filename_tmp="${full_filename}.tmp"
 
@@ -186,7 +195,7 @@ fix_permissions() {
 function main() {
     # Interpret argv for settings; first, set defaults. For some settings, create
     # DEFAULT_* variables for inclusion into help output.
-    local DEFAULT_VERSION="3.7"
+    local DEFAULT_VERSION="3.9"
     local VERSION="$DEFAULT_VERSION"
     local DEFAULT_TARGET_ABIS="x86_64,armeabi-v7a,arm64-v8a"
     local TARGET_ABIS="$DEFAULT_TARGET_ABIS"
@@ -236,7 +245,7 @@ Build ZIP file of Python resources for Android, including CPython compiled as a 
     local BUILD_TAG
     if [ -z "${BUILD_NUMBER:-}" ]; then
         echo "Building untagged build"
-        BUILD_TAG=".custom"
+        BUILD_TAG=""
     else
         echo "Building ${BUILD_NUMBER}"
         BUILD_TAG=".${BUILD_NUMBER}"
@@ -252,8 +261,9 @@ Build ZIP file of Python resources for Android, including CPython compiled as a 
     download bzip2 "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz" "ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
     download sqlite3 "https://github.com/sqlite/sqlite/archive/refs/tags/version-3.35.0.zip" "f85ba70e340428fbf45ed1bf390ddcc622c7f8f4b30e60d063c6b6f8d78924ae"
     download rubicon-java "https://github.com/beeware/rubicon-java/archive/v0.2.6.tar.gz" "0386d84182b347c0e64947579c3e853e9b72d375094fa6d00942f9a7635ca6d1"
-
-    echo "Downloading Python version."
+    download boost "https://github.com/moritz-wundke/Boost-for-Android/archive/53e6c16ea80c7dcb2683fd548e0c7a09ddffbfc1.zip" "252ddb523f48dac81964d1197d082372ed14d4d6c4ec390b507b1f8d31ecb384"
+    download zstd "https://github.com/facebook/zstd/archive/02ef78be58a222ad21c6c0780b211eb5acd6f6f0.zip" "b451e400229ce413af38a877b32755735241400b7a774a310a2ffaf61af2d96d"
+    
     case "$VERSION" in
         3.7)
             download "python-3.7" "https://www.python.org/ftp/python/3.7.13/Python-3.7.13.tar.xz" "99f106275df8899c3e8cb9d7c01ce686c202ef275953301427194693de5bef84"
@@ -282,7 +292,9 @@ Build ZIP file of Python resources for Android, including CPython compiled as a 
     mkdir -p build
     mkdir -p dist
     fix_permissions
+    echo 'rm -rf ..'
     rm -rf ./build/"$VERSION"
+    echo 'mkdir'
     mkdir -p build/"$VERSION"
 
     # Build each ABI.
@@ -293,9 +305,9 @@ Build ZIP file of Python resources for Android, including CPython compiled as a 
 
     # Make a ZIP file, writing it first to `.tmp` so that we atomically clobber an
     # existing ZIP file rather than attempt to merge the new contents with old.
-    pushd build/"$VERSION"/app > /dev/null
-    zip -x@../../../excludes/all/excludes -y -r -"${COMPRESS_LEVEL}" "../../../dist/Python-$VERSION-Android-support${BUILD_TAG}.zip".tmp .
-    mv "../../../dist/Python-$VERSION-Android-support${BUILD_TAG}.zip".tmp "../../../dist/Python-$VERSION-Android-support${BUILD_TAG}.zip"
+    pushd build/android-support > /dev/null
+    zip -x@../../excludes/all/excludes -y -r -"${COMPRESS_LEVEL}" "../../dist/android-support${BUILD_TAG}.zip".tmp .
+    mv "../../dist/android-support${BUILD_TAG}.zip".tmp "../../dist/android-support${BUILD_TAG}.zip"
     popd
 }
 

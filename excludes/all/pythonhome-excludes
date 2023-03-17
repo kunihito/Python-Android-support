@@ -40,7 +40,7 @@ lib/python*/turtledemo/*
 # (not useful in the app) and python3, which could possibly be useful,
 # except Python-Android-support doesn't support launching Python as a
 # subprocess very well at the moment.
-#bin/*
+bin/*
 # Remove share/ directory, which contains user documentation (man pages).
 share/*
 # Remove libpython.so from the stdlib package. We rely on the libpython.so
