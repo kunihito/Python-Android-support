@@ -262,15 +262,68 @@ RUN cd python-src && make install | tee -a $LOGS_DIR/python.install.log
 #RUN mv rubicon-java-src/build/librubicon.so $JNI_LIBS
 #RUN mkdir -p /opt/python-build/app/libs/ && mv rubicon-java-src/build/rubicon.jar $APPROOT/app/libs/
 
-ENV ASSETS_DIR $APPROOT/app/src/main/assets
-RUN mkdir -p "${ASSETS_DIR}"
 
 # Create pythonhome.zip for this CPU architecture, filtering pythonhome.zip using pythonhome-excludes
 # to remove the CPython test suite, etc.
+#ARG COMPRESS_LEVEL
+#ADD excludes/all/pythonhome-excludes /opt/python-build/
+#RUN mkdir -p "$ASSETS_DIR/stdlib" && cd "$PYTHON_INSTALL_DIR" && zip -x@/opt/python-build/pythonhome-excludes -$COMPRESS_LEVEL -q "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip -r .
+#RUN mkdir -p "$ASSETS_DIR/stdlib" && cd "$PYTHON_INSTALL_DIR"
+# Rename the ZIP file to include its sha256sum. This enables fast, accurate
+# cache validation/invalidation when the ZIP file reaches the Android device.
+#RUN sha256sum "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip | cut -d' ' -f1 > /tmp/sum
+#RUN mv "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip "$ASSETS_DIR"/stdlib/pythonhome.`cat /tmp/sum`.${TARGET_ABI_SHORTNAME}.zip
+
+
+FROM toolchain as build_boost
+RUN apt-get update -qq && apt-get -qq install git curl zip bash autoconf automake libtool pkg-config make openssh-server cmake
+COPY --from=build_openssl /opt/python-build/built/openssl /opt/python-build/built/openssl
+COPY --from=build_bz2 /opt/python-build/built/libbz2 /opt/python-build/built/libbz2
+COPY --from=build_xz /opt/python-build/built/xz /opt/python-build/built/xz
+COPY --from=build_libffi /opt/python-build/built/libffi /opt/python-build/built/libffi
+COPY --from=build_sqlite /opt/python-build/built/sqlite /opt/python-build/built/sqlite
+COPY --from=build_python $PYTHON_INSTALL_DIR $PYTHON_INSTALL_DIR
+
+ENV ASSETS_DIR $APPROOT/assets
+RUN mkdir -p "${ASSETS_DIR}"
+
+ADD downloads/boost/* .
+RUN unzip -q Boost-*.zip && rm -rf Boost-*.zip && mv Boost-* boost-src
+RUN cd ./boost-src && ./build-android.sh $NDK --toolchain=llvm --arch=$TARGET_ABI_SHORTNAME --with-python=${PYTHON_INSTALL_DIR}/
+
+ENV BOOST_INSTALL_DIR="$BUILD_HOME/built/boost"
+RUN mkdir -p "$BOOST_INSTALL_DIR" "$BOOST_INSTALL_DIR/include" "$BOOST_INSTALL_DIR/lib"  
+RUN mv ./boost-src/build/out/*/lib/* $BOOST_INSTALL_DIR/lib
+RUN mv ./boost-src/build/out/*/include/boost*/* $BOOST_INSTALL_DIR/include
+
+
+ADD downloads/zstd/* .
+RUN unzip -q zstd-*.zip && rm -rf zstd-*.zip && mv zstd-* zstd-src
+#RUN ./zstd-src/build/cmake
+RUN cd ./zstd-src/build/cmake && mkdir ./$TARGET_ABI_SHORTNAME && cd ./$TARGET_ABI_SHORTNAME && cmake .. \
+    -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=$TARGET_ABI_SHORTNAME  \
+    -DANDROID_PLATFORM=android-23 && make
+#ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" /dev/null
+ENV ZSTD_INSTALL_DIR="$BUILD_HOME/built/zstd"
+RUN mkdir -p "$ZSTD_INSTALL_DIR" "$ZSTD_INSTALL_DIR/include" "$ZSTD_INSTALL_DIR/lib"  
+RUN mv ./zstd-src/build/cmake/$TARGET_ABI_SHORTNAME/lib/libzstd* $ZSTD_INSTALL_DIR/lib
+RUN cp -Rp ./zstd-src/lib/* $ZSTD_INSTALL_DIR/include
+RUN cd $ZSTD_INSTALL_DIR/include && find . -type f  -not -name "*.h" | xargs rm -rf {}
+
+
 ARG COMPRESS_LEVEL
 ADD excludes/all/pythonhome-excludes /opt/python-build/
 RUN mkdir -p "$ASSETS_DIR/stdlib" && cd "$PYTHON_INSTALL_DIR" && zip -x@/opt/python-build/pythonhome-excludes -$COMPRESS_LEVEL -q "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip -r .
-# Rename the ZIP file to include its sha256sum. This enables fast, accurate
-# cache validation/invalidation when the ZIP file reaches the Android device.
-RUN sha256sum "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip | cut -d' ' -f1 > /tmp/sum
-RUN mv "$ASSETS_DIR"/stdlib/pythonhome.${TARGET_ABI_SHORTNAME}.zip "$ASSETS_DIR"/stdlib/pythonhome.`cat /tmp/sum`.${TARGET_ABI_SHORTNAME}.zip
+
+# SSHD (for debugging)
+#RUN mkdir /var/run/sshd
+#RUN echo 'root:THEPASSWORDYOUCREATED' | chpasswd
+#RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+#RUN sed -i 's/#PasswordAuthentication/PasswordAuthentication/' /etc/ssh/sshd_config
+
+# SSH login fix. Otherwise user is kicked off after login
+#RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+#EXPOSE 22
+#CMD ["/usr/sbin/sshd", "-D"]
+

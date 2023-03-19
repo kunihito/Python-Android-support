@@ -4,3 +4,4 @@ dist
 downloads
 downloads.tmp
 .vscode
+.DS_Store
