@@ -175,9 +175,10 @@ RUN cd python-src && LDFLAGS="${LDFLAGS} $(pkg-config --libs-only-L libffi) $(pk
     --host "$TOOLCHAIN_TRIPLE" \
     --build "$COMPILER_TRIPLE" \
     --prefix="$PYTHON_INSTALL_DIR" \
+    --enable-shared \
     --enable-ipv6 \
     --with-openssl=$OPENSSL_INSTALL_DIR \
-    --without-ensurepip \
+    --with-ensurepip=install \
     ac_cv_file__dev_ptmx=yes \
     ac_cv_file__dev_ptc=no \
     ac_cv_little_endian_double=yes \
@@ -310,6 +311,8 @@ RUN mv ./zstd-src/build/cmake/$TARGET_ABI_SHORTNAME/lib/libzstd* $ZSTD_INSTALL_D
 RUN cp -Rp ./zstd-src/lib/* $ZSTD_INSTALL_DIR/include
 RUN cd $ZSTD_INSTALL_DIR/include && find . -type f  -not -name "*.h" | xargs rm -rf {}
 
+#RUN curl "https://bootstrap.pypa.io/get-pip.py" -o "/opt/python-build/get-pip.py"
+#RUN ${PYTHON_INSTALL_DIR}/bin/python3 /opt/python-build/get-pip.py
 
 ARG COMPRESS_LEVEL
 ADD excludes/all/pythonhome-excludes /opt/python-build/

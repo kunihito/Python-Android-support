@@ -46,9 +46,9 @@ python/lib/python*/wsgiref/*
 # Remove command-line curses toolkit.
 python/lib/python*/curses/*
 # Remove config-* directory, which is used for compiling C extension modules.
-python/lib/python*/config-*
+#python/lib/python*/config-*
 python/# Remove ensurepip. If user code needs pip, it can add it to
-python/lib/python*/ensurepip/*
+# python/lib/python*/ensurepip/*
 # Remove Tcl/Tk GUI code. We don't build against Tcl/Tk at the moment, so this
 # will not work.
 python/lib/python*/idlelib/*
